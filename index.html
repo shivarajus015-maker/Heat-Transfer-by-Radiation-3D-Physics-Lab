@@ -1,0 +1,2997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Heat Transfer by Radiation — 3D Physics Lab | ವಿಕಿರಣದಿಂದ ಉಷ್ಣ ವರ್ಗಾವಣೆ</title>
+
+  <!-- Google Fonts for clean English & Kannada typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet" />
+
+  <!-- Three.js & OrbitControls CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #070b14;
+      --panel-bg: rgba(11, 18, 34, 0.84);
+      --panel-border: rgba(56, 189, 248, 0.35);
+      --accent-cyan: #38bdf8;
+      --accent-green: #22c55e;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', 'Noto Sans Kannada', sans-serif;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      touch-action: none;
+    }
+
+    /* Glassmorphic Futuristic Lab Panels */
+    .hud-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), inset 0 0 18px rgba(56, 189, 248, 0.06);
+      pointer-events: auto;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    /* Top Header Bar */
+    #top-bar {
+      position: fixed;
+      top: 12px;
+      left: 16px;
+      right: 16px;
+      z-index: 12;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    #title-card {
+      padding: 9px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    #title-card h1 {
+      font-family: 'Orbitron', 'Inter', sans-serif;
+      font-size: 0.98rem;
+      letter-spacing: 0.04em;
+      color: #e0f2fe;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #title-card .kn-title {
+      font-family: 'Noto Sans Kannada', sans-serif;
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #sim-clock-card {
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .clock-readout {
+      text-align: right;
+    }
+
+    .clock-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .clock-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent-amber);
+      white-space: nowrap;
+    }
+
+    .icon-toggle-btn {
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.38);
+      color: #e2e8f0;
+      border-radius: 9px;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .icon-toggle-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent-cyan);
+    }
+
+    .icon-toggle-btn.active {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: var(--accent-cyan);
+      color: #7dd3fc;
+    }
+
+    /* Left Assembly Checklist & Controls */
+    #left-panel {
+      position: fixed;
+      top: 88px;
+      left: 16px;
+      width: 320px;
+      z-index: 10;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      max-height: calc(100vh - 156px);
+      overflow-y: auto;
+    }
+
+    .section-header {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+      padding-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      transition: all 0.3s ease;
+    }
+
+    .step-item.active {
+      border-color: var(--accent-cyan);
+      background: rgba(14, 116, 144, 0.22);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);
+    }
+
+    .step-item.completed {
+      border-color: rgba(34, 197, 94, 0.65);
+      background: rgba(20, 83, 45, 0.28);
+      box-shadow: 0 0 16px rgba(34, 197, 94, 0.22);
+    }
+
+    .step-status {
+      font-size: 1.02rem;
+      line-height: 1.2;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    .step-item.completed .step-status {
+      filter: drop-shadow(0 0 8px #22c55e);
+      animation: popGlow 0.45s ease;
+    }
+
+    @keyframes popGlow {
+      0% { transform: scale(0.7); }
+      60% { transform: scale(1.25); }
+      100% { transform: scale(1); }
+    }
+
+    .step-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .step-en {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .step-kn {
+      font-size: 0.72rem;
+      color: #cbd5e1;
+      font-family: 'Noto Sans Kannada', sans-serif;
+    }
+
+    .step-sub {
+      font-size: 0.69rem;
+      color: var(--accent-cyan);
+      margin-top: 1px;
+    }
+
+    .hint-banner {
+      padding: 8px 10px;
+      border-radius: 9px;
+      background: rgba(245, 158, 11, 0.14);
+      border: 1px solid rgba(245, 158, 11, 0.38);
+      font-size: 0.75rem;
+      line-height: 1.4;
+      color: #fde68a;
+    }
+
+    /* Interactive Controls Box */
+    .controls-card {
+      padding: 9px 10px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.73rem;
+      color: #cbd5e1;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #f59e0b;
+      cursor: pointer;
+    }
+
+    .speed-pills {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .speed-btn {
+      flex: 1;
+      padding: 5px 6px;
+      border-radius: 7px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(30, 41, 59, 0.8);
+      color: #cbd5e1;
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .speed-btn.active {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: var(--accent-cyan);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+    }
+
+    /* Action Buttons */
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .lab-btn {
+      flex: 1;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: none;
+      font-family: 'Inter', 'Noto Sans Kannada', sans-serif;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    #btn-start {
+      background: linear-gradient(135deg, #0284c7, #22c55e);
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(34, 197, 94, 0.35);
+    }
+
+    #btn-start:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 0 26px rgba(34, 197, 94, 0.65);
+    }
+
+    #btn-start:disabled {
+      background: rgba(51, 65, 85, 0.7);
+      color: #64748b;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    #btn-pause {
+      flex: 0 0 auto;
+      padding: 9px 11px;
+      background: rgba(245, 158, 11, 0.2);
+      color: #fde68a;
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      display: none;
+    }
+
+    #btn-pause.visible {
+      display: flex;
+    }
+
+    #btn-reset {
+      flex: 0 0 auto;
+      padding: 9px 11px;
+      background: rgba(30, 41, 59, 0.85);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    #btn-reset:hover {
+      background: rgba(51, 65, 85, 0.95);
+      color: #fff;
+    }
+
+    .add-time-btn {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(250, 204, 21, 0.65);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.9), rgba(234, 88, 12, 0.9));
+      color: #fff;
+      font-family: 'Inter', 'Noto Sans Kannada', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+      box-shadow: 0 0 18px rgba(245, 158, 11, 0.4);
+      transition: all 0.2s ease;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .add-time-btn.visible {
+      display: flex;
+    }
+
+    .add-time-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 0 24px rgba(245, 158, 11, 0.7);
+    }
+
+    .add-time-btn:disabled {
+      background: rgba(51, 65, 85, 0.75);
+      border-color: rgba(148, 163, 184, 0.3);
+      color: #94a3b8;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* Right Column: Live Graph + Futuristic Result Box */
+    #right-panel {
+      position: fixed;
+      top: 88px;
+      right: 16px;
+      width: 342px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: calc(100vh - 156px);
+      overflow-y: auto;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    #graph-card {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    #temp-graph {
+      width: 100%;
+      height: 160px;
+      border-radius: 8px;
+      background: rgba(5, 10, 20, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+    }
+
+    .graph-legend {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: #cbd5e1;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* Futuristic Glowing Result Box */
+    #result-box {
+      padding: 13px;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.18), inset 0 0 18px rgba(56, 189, 248, 0.08);
+      transition: all 0.4s ease;
+    }
+
+    #result-box.complete {
+      border-color: rgba(34, 197, 94, 0.85);
+      box-shadow: 0 0 32px rgba(34, 197, 94, 0.35), inset 0 0 22px rgba(34, 197, 94, 0.12);
+    }
+
+    .temp-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 7px;
+    }
+
+    .temp-card {
+      padding: 8px 7px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .temp-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .temp-card.black-card {
+      border-color: rgba(249, 115, 22, 0.45);
+    }
+
+    .temp-card.white-card {
+      border-color: rgba(56, 189, 248, 0.45);
+    }
+
+    .temp-card .label {
+      font-size: 0.69rem;
+      color: var(--text-muted);
+      line-height: 1.25;
+    }
+
+    .temp-card .val {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.18rem;
+      font-weight: 700;
+      margin-top: 3px;
+    }
+
+    .temp-card .check-tag {
+      margin-top: 4px;
+      font-size: 0.66rem;
+      color: #fde047;
+      font-weight: 600;
+    }
+
+    .black-card .val { color: #fb923c; }
+    .white-card .val { color: #7dd3fc; }
+
+    #conclusion-content {
+      margin-top: 9px;
+      padding-top: 9px;
+      border-top: 1px solid rgba(148, 163, 184, 0.22);
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.77rem;
+      line-height: 1.4;
+    }
+
+    #conclusion-content.visible {
+      display: flex;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .conclusion-badge {
+      font-weight: 700;
+      color: #4ade80;
+      font-size: 0.85rem;
+    }
+
+    .conclusion-box {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #dcfce7;
+    }
+
+    /* Thermometer Close-Up Inspector Card */
+    #thermo-inspector {
+      position: fixed;
+      bottom: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 16;
+      width: min(440px, calc(100vw - 28px));
+      padding: 13px 15px;
+      display: none;
+      flex-direction: column;
+      gap: 9px;
+      border-color: rgba(239, 68, 68, 0.65);
+      box-shadow: 0 0 32px rgba(239, 68, 68, 0.25);
+    }
+
+    #thermo-inspector.visible {
+      display: flex;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .inspector-body {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    #thermo-zoom-canvas {
+      border-radius: 10px;
+      background: rgba(6, 12, 24, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      flex-shrink: 0;
+    }
+
+    .inspector-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+    }
+
+    .inspector-temp-big {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #fb923c;
+    }
+
+    .inspector-switch-btn {
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      background: rgba(14, 116, 144, 0.3);
+      color: #e0f2fe;
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .inspector-switch-btn:hover {
+      background: rgba(14, 116, 144, 0.55);
+    }
+
+    /* Click Info Card (Absorption vs Reflection) */
+    #info-card {
+      position: fixed;
+      bottom: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+      width: min(540px, calc(100vw - 28px));
+      padding: 12px 15px;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      border-color: rgba(250, 204, 21, 0.55);
+      box-shadow: 0 0 28px rgba(250, 204, 21, 0.2);
+    }
+
+    #info-card.visible {
+      display: flex;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .info-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #fde047;
+    }
+
+    .info-close {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #e2e8f0;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .info-body {
+      font-size: 0.79rem;
+      line-height: 1.45;
+      color: #e2e8f0;
+    }
+
+    /* Floating Hover Tooltip */
+    #hover-tooltip {
+      position: fixed;
+      z-index: 20;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(8, 15, 30, 0.92);
+      border: 1px solid rgba(56, 189, 248, 0.55);
+      color: #f8fafc;
+      font-size: 0.74rem;
+      pointer-events: none;
+      display: none;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+      white-space: nowrap;
+    }
+
+    /* Bottom Camera Tip */
+    #bottom-tip {
+      position: fixed;
+      bottom: 66px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9;
+      padding: 5px 12px;
+      font-size: 0.7rem;
+      color: #94a3b8;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    /* ======================================================================
+       ACTIVITY CONTROL BAR (Prev / Step / Next / Exit + Show UI)
+       ====================================================================== */
+    .activity-bar {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 22;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 16px;
+      background: rgba(8, 15, 32, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(56, 189, 248, 0.42);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.14);
+      max-width: calc(100vw - 16px);
+    }
+
+    .act-btn {
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      background: rgba(15, 28, 56, 0.88);
+      color: #fff;
+      border-radius: 10px;
+      padding: 6px 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1.15;
+      font-size: 0.74rem;
+      font-weight: 700;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .act-btn .kn-tiny {
+      font-family: 'Noto Sans Kannada', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 500;
+      color: #93c5fd;
+    }
+
+    .act-btn:hover:not(:disabled) {
+      border-color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .act-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .act-btn-next {
+      border-color: rgba(56, 189, 248, 0.65);
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.45), rgba(34, 197, 94, 0.38));
+    }
+
+    .act-btn-exit {
+      border-color: rgba(239, 68, 68, 0.48);
+      background: rgba(76, 16, 28, 0.78);
+      color: #fecdd3;
+    }
+
+    .act-btn-exit:hover:not(:disabled) {
+      border-color: var(--accent-red);
+      background: rgba(239, 68, 68, 0.32);
+    }
+
+    .act-status-pill {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 10px;
+      background: rgba(4, 10, 22, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      min-width: 118px;
+      text-align: center;
+    }
+
+    .act-step-main {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      white-space: nowrap;
+    }
+
+    .act-step-sub {
+      font-size: 0.64rem;
+      color: #cbd5e1;
+      white-space: nowrap;
+    }
+
+    .btn-show-ui-float {
+      display: none;
+      border-color: rgba(34, 197, 94, 0.65);
+      background: rgba(16, 66, 46, 0.88);
+      color: #bbf7d0;
+    }
+
+    /* HIDE ALL TEXT / UI MODE */
+    body.ui-hidden #top-bar,
+    body.ui-hidden #left-panel,
+    body.ui-hidden #right-panel,
+    body.ui-hidden #bottom-tip,
+    body.ui-hidden #mobile-mini-hud,
+    body.ui-hidden #mobile-tab-bar {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    body.ui-hidden #left-panel,
+    body.ui-hidden #right-panel,
+    body.ui-hidden #mobile-tab-bar {
+      display: none !important;
+    }
+
+    body.ui-hidden .btn-show-ui-float {
+      display: flex !important;
+    }
+
+    /* ======================================================================
+       MOBILE MODE (body.mode-mobile)
+       ====================================================================== */
+    .mobile-mini-hud,
+    .mobile-tab-bar {
+      display: none;
+    }
+
+    body.mode-mobile #bottom-tip {
+      display: none !important;
+    }
+
+    body.mode-mobile #top-bar {
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      gap: 6px;
+    }
+
+    body.mode-mobile #title-card {
+      padding: 7px 10px;
+      flex: 1;
+    }
+
+    body.mode-mobile #title-card h1 {
+      font-size: 0.78rem;
+    }
+
+    body.mode-mobile #title-card .kn-title,
+    body.mode-mobile .clock-readout {
+      display: none;
+    }
+
+    body.mode-mobile #sim-clock-card {
+      padding: 6px 8px;
+      gap: 5px;
+    }
+
+    body.mode-mobile .icon-toggle-btn {
+      padding: 6px 8px;
+      font-size: 0.72rem;
+    }
+
+    body.mode-mobile .mobile-mini-hud {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      position: fixed;
+      top: 54px;
+      left: 8px;
+      right: 8px;
+      z-index: 10;
+      padding: 6px 10px;
+      border-radius: 12px;
+      background: rgba(10, 18, 36, 0.82);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      font-size: 0.72rem;
+    }
+
+    body.mode-mobile .mini-stat {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    body.mode-mobile .mini-val {
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+
+    body.mode-mobile .mobile-tab-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      position: fixed;
+      bottom: 66px;
+      left: 8px;
+      right: 8px;
+      z-index: 12;
+      padding: 5px;
+      border-radius: 14px;
+      background: rgba(10, 18, 36, 0.9);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(56, 189, 248, 0.32);
+    }
+
+    .mob-tab-btn {
+      flex: 1;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 10px;
+      padding: 6px 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1.15;
+    }
+
+    .mob-tab-btn.active {
+      color: #fff;
+      background: rgba(56, 189, 248, 0.2);
+      border-color: rgba(56, 189, 248, 0.55);
+    }
+
+    .mob-tab-btn .kn-tiny {
+      font-family: 'Noto Sans Kannada', sans-serif;
+      font-size: 0.6rem;
+      color: #93c5fd;
+    }
+
+    /* Mobile Bottom Drawer for Left/Right Panels */
+    body.mode-mobile #left-panel,
+    body.mode-mobile #right-panel {
+      top: auto;
+      left: 8px;
+      right: 8px;
+      width: auto;
+      bottom: 118px;
+      max-height: 37vh;
+      display: none;
+      pointer-events: auto;
+    }
+
+    body.mode-mobile[data-mobile-tab="controls"] #left-panel {
+      display: flex;
+    }
+
+    body.mode-mobile[data-mobile-tab="results"] #right-panel {
+      display: flex;
+    }
+
+    body.mode-mobile[data-mobile-tab="none"] #left-panel,
+    body.mode-mobile[data-mobile-tab="none"] #right-panel {
+      display: none;
+    }
+
+    body.mode-mobile .activity-bar {
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
+      transform: none;
+      width: auto;
+      justify-content: space-between;
+      padding: 6px 8px;
+      gap: 5px;
+    }
+
+    body.mode-mobile .act-btn {
+      padding: 6px 9px;
+      font-size: 0.7rem;
+    }
+
+    body.mode-mobile .act-status-pill {
+      min-width: 82px;
+      padding: 3px 6px;
+    }
+
+    @media (max-width: 980px) {
+      body.mode-desktop #left-panel,
+      body.mode-desktop #right-panel {
+        width: 270px;
+      }
+    }
+  </style>
+</head>
+<body class="mode-desktop" data-mobile-tab="controls">
+
+  <!-- Three.js WebGL Viewport -->
+  <div id="canvas-container"></div>
+  <div id="hover-tooltip"></div>
+
+  <!-- Top HUD Header -->
+  <div id="top-bar">
+    <div id="title-card" class="hud-panel">
+      <h1>🔥 HEAT TRANSFER BY RADIATION — 3D LAB</h1>
+      <div class="kn-title">ವಿಕಿರಣದಿಂದ ಉಷ್ಣ ವರ್ಗಾವಣೆ (ಕಪ್ಪು ಮತ್ತು ಬಿಳಿ ಡಬ್ಬಿ ಪ್ರಯೋಗ)</div>
+    </div>
+
+    <div id="sim-clock-card" class="hud-panel">
+      <button id="btn-layout-mode" class="icon-toggle-btn active" title="Switch Desktop / Mobile Mode">
+        <span id="layout-mode-icon">🖥️</span>
+        <span id="layout-mode-label">Desktop</span>
+      </button>
+      <button id="btn-hide-ui" class="icon-toggle-btn" title="Hide All Text &amp; Panels / ಎಲ್ಲವನ್ನೂ ಮರೆಮಾಡಿ">
+        <span>👁️</span>
+        <span>Hide</span>
+      </button>
+      <button id="btn-sound" class="icon-toggle-btn" title="Toggle Sound">🔊</button>
+      <div class="clock-readout">
+        <div class="clock-label">Simulated Time / ಸಮಯ</div>
+        <div class="clock-value" id="clock-display">00.0 / 20.0 min</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Mini Status Strip -->
+  <div id="mobile-mini-hud" class="mobile-mini-hud">
+    <div class="mini-stat">
+      <span>⏱️</span>
+      <span id="mob-clock" class="mini-val" style="color:#fbbf24;">0.0m</span>
+    </div>
+    <div class="mini-stat">
+      <span>⬛</span>
+      <span id="mob-black-temp" class="mini-val" style="color:#fb923c;">28.0°C</span>
+    </div>
+    <div class="mini-stat">
+      <span>⬜</span>
+      <span id="mob-white-temp" class="mini-val" style="color:#38bdf8;">28.0°C</span>
+    </div>
+  </div>
+
+  <!-- Left Panel: Step-by-Step Lab Assembly & Interactive Controls -->
+  <aside id="left-panel" class="hud-panel">
+    <div class="section-header">
+      <span>Lab Assembly / ಪ್ರಯೋಗ ಜೋಡಣೆ</span>
+    </div>
+
+    <div class="step-list">
+      <div class="step-item active" id="step-1">
+        <div class="step-status" id="step-1-icon">⏳</div>
+        <div class="step-text">
+          <span class="step-en">1. Place Black &amp; White Cans</span>
+          <span class="step-kn">೧. ಕಪ್ಪು ಮತ್ತು ಬಿಳಿ ಡಬ್ಬಿಗಳನ್ನು ಮೇಜಿನ ಮೇಲೆ ಇಡಿ</span>
+          <span class="step-sub" id="step-1-sub">Placed: 0 / 2</span>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-2">
+        <div class="step-status" id="step-2-icon">🔒</div>
+        <div class="step-text">
+          <span class="step-en">2. Pour 50ml Water from Beaker</span>
+          <span class="step-kn">೨. ಬೀಕರ್‌ನಿಂದ ಎರಡೂ ಡಬ್ಬಿಗಳಿಗೆ 50ml ನೀರು ಸುರಿಯಿರಿ</span>
+          <span class="step-sub" id="step-2-sub">Pending Step 1</span>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-3">
+        <div class="step-status" id="step-3-icon">🔒</div>
+        <div class="step-text">
+          <span class="step-en">3. Insert 2 Thermometers</span>
+          <span class="step-kn">೩. ಎರಡು ಥರ್ಮಾಮೀಟರ್‌ಗಳನ್ನು ಡಬ್ಬಿಗಳ ಒಳಗೆ ಇಡಿ</span>
+          <span class="step-sub" id="step-3-sub">Pending Step 2</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint-banner" id="guide-hint">
+      👉 Drag or tap the <strong>Black Can</strong> &amp; <strong>White Can</strong> from the 3D Toolbox onto the glowing rings.<br/>
+      <span style="font-family:'Noto Sans Kannada',sans-serif;">ಟೂಲ್‌ಬಾಕ್ಸ್‌ನಿಂದ ಕಪ್ಪು ಮತ್ತು ಬಿಳಿ ಡಬ್ಬಿಗಳನ್ನು ಎಳೆದು (ಅಥವಾ ಟ್ಯಾಪ್ ಮಾಡಿ) ಮೇಜಿನ ಮೇಲೆ ಇಡಿ.</span>
+    </div>
+
+    <!-- Interactive Experiment Controls -->
+    <div class="controls-card">
+      <div class="slider-row">
+        <div class="slider-label">
+          <span>☀️ Sun Intensity / ಸೂರ್ಯನ ತೀವ್ರತೆ</span>
+          <strong id="sun-power-label" style="color:#fbbf24;">100%</strong>
+        </div>
+        <input type="range" id="sun-slider" min="50" max="150" step="10" value="100" />
+      </div>
+      <div class="slider-row">
+        <span>⚡ Time-Lapse Speed / ವೇಗ</span>
+        <div class="speed-pills">
+          <button class="speed-btn active" data-speed="1">1x</button>
+          <button class="speed-btn" data-speed="2">2x</button>
+          <button class="speed-btn" data-speed="5">5x</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button id="btn-start" class="lab-btn" disabled>
+        <span>☀️ Start Experiment</span>
+        <span style="font-size:0.72rem;font-family:'Noto Sans Kannada',sans-serif;">ಪ್ರಯೋಗ ಪ್ರಾರಂಭಿಸಿ</span>
+      </button>
+      <button id="btn-pause" class="lab-btn" title="Pause / Resume">
+        <span id="pause-icon">⏸️ Pause</span>
+      </button>
+      <button id="btn-reset" class="lab-btn" title="Reset Lab">
+        <span>↺ Reset</span>
+        <span style="font-size:0.68rem;font-family:'Noto Sans Kannada',sans-serif;">ಮರುಹೊಂದಿಸಿ</span>
+      </button>
+    </div>
+
+    <!-- +10 Min Extension Button (visible after 20 min, up to 100 min) -->
+    <button id="btn-add-10-left" class="add-time-btn">
+      <span>➕ Add +10 Min (Up to 100 Min)</span>
+      <span style="font-size:0.72rem;font-family:'Noto Sans Kannada',sans-serif;">ಇನ್ನೂ +10 ನಿಮಿಷ ಸೇರಿಸಿ (ಗರಿಷ್ಠ 100 ನಿಮಿಷ)</span>
+    </button>
+  </aside>
+
+  <!-- Right Panel: Live Temperature Graph & Futuristic Result Box -->
+  <aside id="right-panel">
+    <div id="graph-card" class="hud-panel">
+      <div class="section-header">
+        <span>Live Temp Graph / ನೇರ ತಾಪಮಾನ ಗ್ರಾಫ್</span>
+        <span id="graph-range-badge" style="font-size:0.68rem; color:#fbbf24;">0–20 min</span>
+      </div>
+      <canvas id="temp-graph" width="320" height="160"></canvas>
+      <div class="graph-legend">
+        <div class="legend-item">
+          <span class="dot" style="background:#f97316; box-shadow:0 0 8px #f97316;"></span>
+          <span>Black Can (ಕಪ್ಪು)</span>
+        </div>
+        <div class="legend-item">
+          <span class="dot" style="background:#38bdf8; box-shadow:0 0 8px #38bdf8;"></span>
+          <span>White Can (ಬಿಳಿ)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Glowing Futuristic Result Box -->
+    <div id="result-box" class="hud-panel">
+      <div class="section-header">
+        <span>Result Box / ಫಲಿತಾಂಶ ಪೆಟ್ಟಿಗೆ</span>
+        <span style="font-size:0.66rem; color:#94a3b8;">Click to Check 🌡️</span>
+      </div>
+      <div class="temp-grid">
+        <div class="temp-card black-card" id="card-check-black" title="Click to check Black Can Thermometer">
+          <div class="label">Current Black Can Temp<br/><span style="font-family:'Noto Sans Kannada',sans-serif;">ಕಪ್ಪು ಡಬ್ಬಿ ತಾಪಮಾನ</span></div>
+          <div class="val" id="black-temp-val">28.0°C</div>
+          <div class="check-tag">🔍 Check 🌡️</div>
+        </div>
+        <div class="temp-card white-card" id="card-check-white" title="Click to check White Can Thermometer">
+          <div class="label">Current White Can Temp<br/><span style="font-family:'Noto Sans Kannada',sans-serif;">ಬಿಳಿ ಡಬ್ಬಿ ತಾಪಮಾನ</span></div>
+          <div class="val" id="white-temp-val">28.0°C</div>
+          <div class="check-tag">🔍 Check 🌡️</div>
+        </div>
+      </div>
+
+      <div id="conclusion-content">
+        <div class="conclusion-badge" id="conclusion-badge">✅ Experiment Complete! (ಪ್ರಯೋಗ ಪೂರ್ಣಗೊಂಡಿದೆ)</div>
+        <div id="summary-black">Black Can reached 50.0°C in 20 mins.</div>
+        <div id="summary-white">White Can reached 34.5°C in 20 mins.</div>
+        <div class="conclusion-box">
+          <strong>Conclusion:</strong> Black surfaces absorb more radiation and heat up faster than white surfaces.<br/>
+          <span style="font-family:'Noto Sans Kannada',sans-serif; color:#86efac;">
+            ಕಪ್ಪು ಮೇಲ್ಮೈಗಳು ಹೆಚ್ಚು ವಿಕಿರಣವನ್ನು ಹೀರಿಕೊಳ್ಳುತ್ತವೆ ಮತ್ತು ಬಿಳಿ ಮೇಲ್ಮೈಗಳಿಗಿಂತ ಬೇಗನೆ ಬಿಸಿಯಾಗುತ್ತವೆ.
+          </span>
+        </div>
+        <button id="btn-add-10-result" class="add-time-btn">
+          <span>➕ Continue +10 Min (up to 100 min)</span>
+          <span style="font-size:0.72rem;font-family:'Noto Sans Kannada',sans-serif;">ಮುಂದುವರಿಸಿ: +10 ನಿಮಿಷ ಸೇರಿಸಿ</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Mobile Bottom Tab Bar -->
+  <div id="mobile-tab-bar" class="mobile-tab-bar">
+    <button class="mob-tab-btn active" data-mob-tab="controls">
+      <span>🎛️ Controls</span>
+      <span class="kn-tiny">ನಿಯಂತ್ರಣ</span>
+    </button>
+    <button class="mob-tab-btn" data-mob-tab="results">
+      <span>📊 Graph &amp; Result</span>
+      <span class="kn-tiny">ಗ್ರಾಫ್ ಮತ್ತು ಫಲಿತಾಂಶ</span>
+    </button>
+    <button class="mob-tab-btn" data-mob-tab="none">
+      <span>🧪 3D Only</span>
+      <span class="kn-tiny">3D ನೋಟ</span>
+    </button>
+  </div>
+
+  <!-- Zoomed Thermometer Reader Card -->
+  <div id="thermo-inspector" class="hud-panel">
+    <div class="info-header">
+      <span class="info-title" id="inspector-title">🌡️ Thermometer Check / ಥರ್ಮಾಮೀಟರ್ ಪರಿಶೀಲನೆ</span>
+      <button class="info-close" id="inspector-close">✕</button>
+    </div>
+    <div class="inspector-body">
+      <canvas id="thermo-zoom-canvas" width="96" height="190"></canvas>
+      <div class="inspector-stats">
+        <div id="inspector-can-label" style="font-size:0.84rem; font-weight:700; color:#e2e8f0;">Black Can Thermometer</div>
+        <div class="inspector-temp-big" id="inspector-temp-readout">28.0°C</div>
+        <div id="inspector-rate-text" style="font-size:0.74rem; color:#94a3b8;">Scale Range: 20°C – 100°C</div>
+        <div id="inspector-kn-note" style="font-size:0.73rem; color:#7dd3fc; font-family:'Noto Sans Kannada',sans-serif;">
+          ಥರ್ಮಾಮೀಟರ್‌ನಲ್ಲಿ ಕೆಂಪು ದ್ರವದ ಮಟ್ಟವನ್ನು ನೇರವಾಗಿ ನೋಡಿ.
+        </div>
+        <button class="inspector-switch-btn" id="inspector-switch">⇄ Check Other Thermometer (ಮತ್ತೊಂದು ಥರ್ಮಾಮೀಟರ್)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raycast Info Card on Clicking Cans -->
+  <div id="info-card" class="hud-panel">
+    <div class="info-header">
+      <span class="info-title" id="info-title">Absorption (ಹೀರಿಕೊಳ್ಳುವಿಕೆ) vs Reflection (ಪ್ರತಿಫಲನ)</span>
+      <button class="info-close" id="info-close">✕</button>
+    </div>
+    <div class="info-body" id="info-body"></div>
+  </div>
+
+  <!-- Bottom Camera Tip -->
+  <div id="bottom-tip" class="hud-panel">
+    🖱️ Orbit: Drag Background • Zoom: Scroll • Drag or Tap Toolbox Items to Place • Click Cans/Thermometers to Inspect
+  </div>
+
+  <!-- Activity Control Bar: Previous / Step / Next / Exit + Show UI -->
+  <div id="activity-bar" class="activity-bar" role="toolbar" aria-label="Activity Controls">
+    <button id="btn-act-prev" class="act-btn" disabled title="Previous Step">
+      <span>◀ Prev</span>
+      <span class="kn-tiny">ಹಿಂದಿನ</span>
+    </button>
+
+    <div class="act-status-pill">
+      <span id="act-step-main" class="act-step-main">STEP 1 / 5</span>
+      <span id="act-step-sub" class="act-step-sub">Place Cans (0/2)</span>
+    </div>
+
+    <button id="btn-act-next" class="act-btn act-btn-next" title="Next Step / Auto-Place">
+      <span>Next ▶</span>
+      <span class="kn-tiny">ಮುಂದಿನ</span>
+    </button>
+
+    <button id="btn-act-exit" class="act-btn act-btn-exit" title="Reset &amp; Exit Activity">
+      <span>✕ Exit</span>
+      <span class="kn-tiny">ನಿರ್ಗಮಿಸಿ</span>
+    </button>
+
+    <button id="btn-show-ui" class="act-btn btn-show-ui-float" title="Show All UI Panels">
+      <span>👁️ Show</span>
+      <span class="kn-tiny">ತೋರಿಸಿ</span>
+    </button>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 0. WEB AUDIO API FEEDBACK
+    // =========================================================================
+    let soundEnabled = true;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function playTone(freq, duration = 0.12, type = 'sine', gainVal = 0.08) {
+      if (!soundEnabled || !AudioCtx) return;
+      try {
+        if (!audioCtx) audioCtx = new AudioCtx();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playSuccessChime() {
+      playTone(523.25, 0.14, 'triangle', 0.09);
+      setTimeout(() => playTone(659.25, 0.16, 'triangle', 0.09), 90);
+      setTimeout(() => playTone(783.99, 0.24, 'triangle', 0.1), 180);
+    }
+
+    // =========================================================================
+    // 1. SCENE, CAMERA, RENDERER & ORBIT CONTROLS SETUP
+    // =========================================================================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070b14);
+    scene.fog = new THREE.FogExp2(0x070b14, 0.032);
+
+    const camera = new THREE.PerspectiveCamera(
+      46,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      100
+    );
+    camera.position.set(0.2, 4.5, 7.6);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.domElement.style.touchAction = 'none';
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.target.set(-0.2, 1.0, 0);
+    controls.minDistance = 2.8;
+    controls.maxDistance = 16;
+    controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+    // =========================================================================
+    // 2. LIGHTING & 3D SUN (RADIATION SOURCE)
+    // =========================================================================
+    const ambientLight = new THREE.AmbientLight(0x8fa8c8, 0.65);
+    scene.add(ambientLight);
+
+    const labOverheadLight = new THREE.PointLight(0xbae6fd, 0.75, 22);
+    labOverheadLight.position.set(0, 6.5, 2);
+    scene.add(labOverheadLight);
+
+    const sunGroup = new THREE.Group();
+    sunGroup.position.set(4.5, 5.2, -2.5);
+    scene.add(sunGroup);
+
+    const sunCoreMat = new THREE.MeshBasicMaterial({ color: 0x475569 });
+    const sunCore = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), sunCoreMat);
+    sunGroup.add(sunCore);
+
+    const sunHaloMat = new THREE.MeshBasicMaterial({
+      color: 0xfbbf24,
+      transparent: true,
+      opacity: 0.0,
+      side: THREE.BackSide
+    });
+    const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(1.05, 32, 32), sunHaloMat);
+    sunGroup.add(sunHalo);
+
+    const rayGroup = new THREE.Group();
+    const rayMat = new THREE.MeshBasicMaterial({
+      color: 0xfde047,
+      transparent: true,
+      opacity: 0.0
+    });
+    const rayTargets = [
+      new THREE.Vector3(-0.35, 0.95, 0),
+      new THREE.Vector3(1.85, 0.95, 0)
+    ];
+    rayTargets.forEach((tgt) => {
+      const dir = new THREE.Vector3().subVectors(tgt, sunGroup.position);
+      const len = dir.length();
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.048, len, 8), rayMat);
+      beam.position.copy(sunGroup.position).addScaledVector(dir, 0.5);
+      beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+      rayGroup.add(beam);
+    });
+    scene.add(rayGroup);
+
+    const sunLight = new THREE.DirectionalLight(0xfff3c4, 0.2);
+    sunLight.position.copy(sunGroup.position);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 1;
+    sunLight.shadow.camera.far = 18;
+    sunLight.shadow.camera.left = -5;
+    sunLight.shadow.camera.right = 5;
+    sunLight.shadow.camera.top = 5;
+    sunLight.shadow.camera.bottom = -5;
+    sunLight.shadow.bias = -0.0005;
+    scene.add(sunLight);
+
+    // =========================================================================
+    // 3. PROCEDURAL TEXTURES & LAB ENVIRONMENT (TABLE + TOOLBOX)
+    // =========================================================================
+    function createWoodTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#3b2618';
+      ctx.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 180; i++) {
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(28, 16, 8, 0.25)' : 'rgba(92, 58, 36, 0.2)';
+        const y = Math.random() * 512;
+        ctx.fillRect(0, y, 512, 2 + Math.random() * 6);
+      }
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.07)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= 512; x += 32) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, x); ctx.lineTo(512, x); ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(2, 1);
+      return tex;
+    }
+
+    function createLabelSprite(enText, knText, bgColor = 'rgba(11,18,34,0.85)') {
+      const c = document.createElement('canvas');
+      c.width = 360;
+      c.height = 110;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = bgColor;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(6, 6, 348, 98, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 24px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(enText, 180, 46);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '600 22px "Noto Sans Kannada", sans-serif';
+      ctx.fillText(knText, 180, 82);
+
+      const tex = new THREE.CanvasTexture(c);
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(1.25, 0.38, 1);
+      return sprite;
+    }
+
+    function createThermometerScaleTexture() {
+      const c = document.createElement('canvas');
+      c.width = 160;
+      c.height = 640;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, 160, 640);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(72, 20, 16, 600);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 24px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('°C', 80, 26);
+
+      const yBottom = 610;
+      const yTop = 40;
+      const span = yBottom - yTop;
+
+      for (let t = 20; t <= 100; t += 5) {
+        const frac = (t - 20) / 80;
+        const y = yBottom - frac * span;
+        const isMajor = t % 10 === 0;
+
+        ctx.strokeStyle = t >= 60 ? '#dc2626' : '#0f172a';
+        ctx.lineWidth = isMajor ? 4 : 2;
+        ctx.beginPath();
+        ctx.moveTo(isMajor ? 44 : 56, y);
+        ctx.lineTo(72, y);
+        ctx.moveTo(88, y);
+        ctx.lineTo(isMajor ? 116 : 104, y);
+        ctx.stroke();
+
+        if (isMajor) {
+          ctx.fillStyle = t >= 60 ? '#dc2626' : '#0f172a';
+          ctx.font = 'bold 22px Inter, sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(String(t), 40, y + 7);
+          ctx.textAlign = 'left';
+          ctx.fillText(String(t), 120, y + 7);
+        }
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.anisotropy = 4;
+      return tex;
+    }
+
+    function createThermoReadoutSprite(accentHex) {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 88;
+      const ctx = c.getContext('2d');
+      const tex = new THREE.CanvasTexture(c);
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(0.95, 0.33, 1);
+
+      sprite.userData.updateTemp = (tempC, force = false) => {
+        const rounded = tempC.toFixed(1);
+        if (!force && sprite.userData.lastText === rounded) return;
+        sprite.userData.lastText = rounded;
+
+        ctx.clearRect(0, 0, 256, 88);
+        ctx.fillStyle = 'rgba(9, 15, 30, 0.9)';
+        ctx.strokeStyle = accentHex;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(6, 6, 244, 76, 16);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 34px Orbitron, Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${rounded}°C`, 128, 56);
+        tex.needsUpdate = true;
+      };
+      sprite.userData.updateTemp(28.0, true);
+      return sprite;
+    }
+
+    const floorGrid = new THREE.GridHelper(30, 30, 0x1e3a5f, 0x0f172a);
+    floorGrid.position.y = -1.6;
+    scene.add(floorGrid);
+
+    const tableGroup = new THREE.Group();
+    scene.add(tableGroup);
+
+    const tableTopMat = new THREE.MeshStandardMaterial({
+      map: createWoodTexture(),
+      roughness: 0.45,
+      metalness: 0.08
+    });
+    const tableTop = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.22, 4.2), tableTopMat);
+    tableTop.position.set(0, 0.39, 0);
+    tableTop.receiveShadow = true;
+    tableTop.castShadow = true;
+    tableGroup.add(tableTop);
+
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.75 });
+    const tableFrame = new THREE.Mesh(new THREE.BoxGeometry(8.7, 0.12, 4.3), rimMat);
+    tableFrame.position.set(0, 0.24, 0);
+    tableGroup.add(tableFrame);
+
+    const legGeo = new THREE.CylinderGeometry(0.11, 0.09, 1.85, 16);
+    [[-3.9, -1.75], [3.9, -1.75], [-3.9, 1.75], [3.9, 1.75]].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(legGeo, rimMat);
+      leg.position.set(lx, -0.68, lz);
+      leg.castShadow = true;
+      tableGroup.add(leg);
+    });
+
+    // =========================================================================
+    // 4. 3D TOOLBOX
+    // =========================================================================
+    const toolboxGroup = new THREE.Group();
+    toolboxGroup.position.set(-2.95, 0.5, 0);
+    scene.add(toolboxGroup);
+
+    const toolboxBaseMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.35,
+      metalness: 0.65
+    });
+    const toolboxBase = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.14, 3.3), toolboxBaseMat);
+    toolboxBase.position.y = 0.07;
+    toolboxBase.receiveShadow = true;
+    toolboxBase.castShadow = true;
+    toolboxGroup.add(toolboxBase);
+
+    const trimMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const frontTrim = new THREE.Mesh(new THREE.BoxGeometry(2.12, 0.03, 0.03), trimMat);
+    frontTrim.position.set(0, 0.14, 1.65);
+    toolboxGroup.add(frontTrim);
+
+    const toolboxLabel = createLabelSprite('3D TOOLBOX', 'ಸಲಕರಣೆ ಪೆಟ್ಟಿಗೆ');
+    toolboxLabel.position.set(-2.95, 0.8, 1.85);
+    scene.add(toolboxLabel);
+
+    // =========================================================================
+    // 5. TARGET DROP ZONES ON TABLE
+    // =========================================================================
+    const BLACK_TARGET = new THREE.Vector3(-0.35, 0.5, 0);
+    const WHITE_TARGET = new THREE.Vector3(1.85, 0.5, 0);
+
+    function createTargetRing(pos, colorHex) {
+      const geo = new THREE.RingGeometry(0.48, 0.56, 40);
+      const mat = new THREE.MeshBasicMaterial({
+        color: colorHex,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.75
+      });
+      const ring = new THREE.Mesh(geo, mat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(pos.x, 0.506, pos.z);
+      scene.add(ring);
+      return ring;
+    }
+
+    const blackZoneRing = createTargetRing(BLACK_TARGET, 0xf97316);
+    const whiteZoneRing = createTargetRing(WHITE_TARGET, 0x38bdf8);
+
+    const blackPadLabel = createLabelSprite('Black Can Zone', 'ಕಪ್ಪು ಡಬ್ಬಿ ಸ್ಥಳ');
+    blackPadLabel.position.set(BLACK_TARGET.x, 0.75, 0.85);
+    scene.add(blackPadLabel);
+
+    const whitePadLabel = createLabelSprite('White Can Zone', 'ಬಿಳಿ ಡಬ್ಬಿ ಸ್ಥಳ');
+    whitePadLabel.position.set(WHITE_TARGET.x, 0.75, 0.85);
+    scene.add(whitePadLabel);
+
+    // =========================================================================
+    // 6. EXPERIMENT APPARATUS BUILDERS
+    // =========================================================================
+    const draggableItems = [];
+    const clickableCans = [];
+    const clickableThermometers = [];
+
+    function buildCan(type) {
+      const isBlack = type === 'black';
+      const group = new THREE.Group();
+
+      const canMat = new THREE.MeshStandardMaterial({
+        color: isBlack ? 0x000000 : 0xffffff,
+        roughness: isBlack ? 0.9 : 0.1,
+        metalness: isBlack ? 0.05 : 0.15,
+        side: THREE.DoubleSide
+      });
+
+      const wall = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.15, 40, 1, true), canMat);
+      wall.position.y = 0.575;
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      wall.userData.canType = type;
+      wall.userData.hoverLabel = isBlack
+        ? 'Black Can (ಕಪ್ಪು ಡಬ್ಬಿ) — Drag or Tap to Place / Click for Physics'
+        : 'White Can (ಬಿಳಿ ಡಬ್ಬಿ) — Drag or Tap to Place / Click for Physics';
+      group.add(wall);
+
+      const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.45, 40), canMat);
+      bottom.rotation.x = -Math.PI / 2;
+      bottom.position.y = 0.01;
+      bottom.receiveShadow = true;
+      group.add(bottom);
+
+      const rim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.45, 0.015, 10, 40),
+        new THREE.MeshStandardMaterial({
+          color: isBlack ? 0x334155 : 0xe2e8f0,
+          roughness: 0.4,
+          metalness: 0.6
+        })
+      );
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = 1.15;
+      group.add(rim);
+
+      const waterMat = new THREE.MeshStandardMaterial({
+        color: 0x1e90ff,
+        transparent: true,
+        opacity: 0.72,
+        roughness: 0.12,
+        metalness: 0.05
+      });
+      const waterMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.41, 0.41, 0.78, 32), waterMat);
+      waterMesh.position.y = 0.41;
+      waterMesh.scale.y = 0.001;
+      waterMesh.visible = false;
+      group.add(waterMesh);
+
+      group.userData = {
+        itemType: 'can',
+        canType: type,
+        placed: false,
+        hasWater: false,
+        hasThermometer: false,
+        waterMesh,
+        waterMat,
+        homePos: new THREE.Vector3(isBlack ? -3.4 : -2.5, 0.64, -0.95),
+        targetPos: isBlack ? BLACK_TARGET.clone() : WHITE_TARGET.clone()
+      };
+
+      group.position.copy(group.userData.homePos);
+      scene.add(group);
+      draggableItems.push(group);
+      clickableCans.push(wall);
+      return group;
+    }
+
+    const blackCan = buildCan('black');
+    const whiteCan = buildCan('white');
+
+    function buildBeaker() {
+      const group = new THREE.Group();
+      const glassMat = new THREE.MeshStandardMaterial({
+        color: 0xdbeafe,
+        transparent: true,
+        opacity: 0.34,
+        roughness: 0.08,
+        metalness: 0.1,
+        side: THREE.DoubleSide
+      });
+
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.30, 0.9, 32, 1, true), glassMat);
+      body.position.y = 0.45;
+      body.castShadow = true;
+      body.userData.hoverLabel = 'Water Beaker 100ml (ನೀರಿನ ಬೀಕರ್) — Drag or Tap to Pour';
+      group.add(body);
+
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.03, 32), glassMat);
+      base.position.y = 0.015;
+      group.add(base);
+
+      const markMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+      [0.25, 0.45, 0.65].forEach((y) => {
+        const tick = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.012, 0.01), markMat);
+        tick.position.set(0, y, 0.31);
+        group.add(tick);
+      });
+
+      const liquidMat = new THREE.MeshStandardMaterial({
+        color: 0x0ea5e9,
+        transparent: true,
+        opacity: 0.78,
+        roughness: 0.1
+      });
+      const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.27, 0.64, 28), liquidMat);
+      liquid.position.y = 0.34;
+      group.add(liquid);
+
+      group.userData = {
+        itemType: 'beaker',
+        used: false,
+        liquid,
+        homePos: new THREE.Vector3(-2.95, 0.64, 0.25)
+      };
+      group.position.copy(group.userData.homePos);
+      scene.add(group);
+      draggableItems.push(group);
+      return group;
+    }
+
+    const waterBeaker = buildBeaker();
+    const thermoScaleTex = createThermometerScaleTexture();
+
+    function buildThermometer(index) {
+      const group = new THREE.Group();
+
+      const tubeMat = new THREE.MeshStandardMaterial({
+        color: 0xe0f2fe,
+        transparent: true,
+        opacity: 0.42,
+        roughness: 0.05,
+        metalness: 0.1
+      });
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 1.45, 18), tubeMat);
+      tube.position.y = 0.78;
+      tube.castShadow = true;
+      tube.userData.thermoRef = group;
+      tube.userData.hoverLabel = 'Thermometer (ಥರ್ಮಾಮೀಟರ್) — Drag or Tap to Insert / Click to Check';
+      group.add(tube);
+
+      const scaleStrip = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 1.18, 0.014),
+        new THREE.MeshStandardMaterial({ map: thermoScaleTex, roughness: 0.4 })
+      );
+      scaleStrip.position.set(0, 0.78, -0.012);
+      scaleStrip.userData.thermoRef = group;
+      scaleStrip.userData.hoverLabel = 'Thermometer Scale (20°C–100°C) — Click to Check';
+      group.add(scaleStrip);
+
+      const redMat = new THREE.MeshStandardMaterial({
+        color: 0xef4444,
+        emissive: 0x991b1b,
+        emissiveIntensity: 0.45,
+        roughness: 0.2
+      });
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 18), redMat);
+      bulb.position.y = 0.12;
+      bulb.userData.thermoRef = group;
+      group.add(bulb);
+
+      const columnHeightMax = 1.12;
+      const redColumn = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.028, 0.028, columnHeightMax, 14),
+        redMat
+      );
+      redColumn.position.set(0, 0.22 + (columnHeightMax * 0.1) / 2, 0.012);
+      redColumn.scale.y = 0.1;
+      redColumn.userData.thermoRef = group;
+      group.add(redColumn);
+
+      const badge = createThermoReadoutSprite(index === 0 ? '#fb923c' : '#38bdf8');
+      badge.position.set(0, 1.72, 0);
+      badge.visible = false;
+      group.add(badge);
+
+      const highlightRing = new THREE.Mesh(
+        new THREE.RingGeometry(0.14, 0.2, 24),
+        new THREE.MeshBasicMaterial({ color: 0xfde047, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+      );
+      highlightRing.rotation.x = -Math.PI / 2;
+      highlightRing.position.y = 1.48;
+      highlightRing.visible = false;
+      group.add(highlightRing);
+
+      const homeX = index === 0 ? -3.35 : -2.55;
+      group.userData = {
+        itemType: 'thermometer',
+        index,
+        placedInCan: null,
+        redColumn,
+        columnHeightMax,
+        badge,
+        highlightRing,
+        currentTemp: 28.0,
+        homePos: new THREE.Vector3(homeX, 0.64, 1.15)
+      };
+
+      group.position.copy(group.userData.homePos);
+      scene.add(group);
+      draggableItems.push(group);
+      clickableThermometers.push(tube, scaleStrip, bulb, redColumn);
+      return group;
+    }
+
+    const thermometers = [buildThermometer(0), buildThermometer(1)];
+
+    function setThermometerTemp(thermo, tempC) {
+      thermo.userData.currentTemp = tempC;
+      const frac = THREE.MathUtils.clamp((tempC - 20) / 80, 0.04, 1.0);
+      const maxH = thermo.userData.columnHeightMax;
+      thermo.userData.redColumn.scale.y = frac;
+      thermo.userData.redColumn.position.y = 0.22 + (maxH * frac) / 2;
+      thermo.userData.badge.userData.updateTemp(tempC);
+    }
+
+    // =========================================================================
+    // 7. RISING STEAM PARTICLES
+    // =========================================================================
+    const STEAM_COUNT = 65;
+    const steamPositions = new Float32Array(STEAM_COUNT * 3);
+    const steamSpeeds = new Float32Array(STEAM_COUNT);
+    const steamOffsets = new Float32Array(STEAM_COUNT);
+
+    for (let i = 0; i < STEAM_COUNT; i++) {
+      steamPositions[i * 3] = BLACK_TARGET.x + (Math.random() - 0.5) * 0.55;
+      steamPositions[i * 3 + 1] = 1.35 + Math.random() * 1.5;
+      steamPositions[i * 3 + 2] = BLACK_TARGET.z + (Math.random() - 0.5) * 0.55;
+      steamSpeeds[i] = 0.35 + Math.random() * 0.5;
+      steamOffsets[i] = Math.random() * Math.PI * 2;
+    }
+
+    const steamGeo = new THREE.BufferGeometry();
+    steamGeo.setAttribute('position', new THREE.BufferAttribute(steamPositions, 3));
+
+    function createSteamTexture() {
+      const c = document.createElement('canvas');
+      c.width = 64;
+      c.height = 64;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+      grad.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+      grad.addColorStop(0.5, 'rgba(226, 232, 240, 0.35)');
+      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(c);
+    }
+
+    const steamMat = new THREE.PointsMaterial({
+      size: 0.4,
+      map: createSteamTexture(),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.NormalBlending
+    });
+    const steamSystem = new THREE.Points(steamGeo, steamMat);
+    scene.add(steamSystem);
+
+    // =========================================================================
+    // 8. STATE MANAGEMENT
+    // =========================================================================
+    const MAX_SIM_MINUTES = 100;
+
+    const state = {
+      step: 1,
+      isPausedByUser: false,
+      cansPlaced: 0,
+      isPouring: false,
+      pourProgress: 0,
+      thermosPlaced: 0,
+      simMinutes: 0,
+      targetMinutes: 20,
+      speedMultiplier: 1,
+      sunPower: 1.0,
+      blackTemp: 28.0,
+      whiteTemp: 28.0,
+      history: [{ t: 0, black: 28.0, white: 28.0 }],
+      lastGraphSample: 0,
+      inspectedCanType: null
+    };
+
+    const ui = {
+      step1: document.getElementById('step-1'),
+      step2: document.getElementById('step-2'),
+      step3: document.getElementById('step-3'),
+      step1Icon: document.getElementById('step-1-icon'),
+      step2Icon: document.getElementById('step-2-icon'),
+      step3Icon: document.getElementById('step-3-icon'),
+      step1Sub: document.getElementById('step-1-sub'),
+      step2Sub: document.getElementById('step-2-sub'),
+      step3Sub: document.getElementById('step-3-sub'),
+      hint: document.getElementById('guide-hint'),
+      btnStart: document.getElementById('btn-start'),
+      btnPause: document.getElementById('btn-pause'),
+      pauseIcon: document.getElementById('pause-icon'),
+      btnReset: document.getElementById('btn-reset'),
+      btnSound: document.getElementById('btn-sound'),
+      btnAdd10Left: document.getElementById('btn-add-10-left'),
+      btnAdd10Result: document.getElementById('btn-add-10-result'),
+      sunSlider: document.getElementById('sun-slider'),
+      sunPowerLabel: document.getElementById('sun-power-label'),
+      clock: document.getElementById('clock-display'),
+      mobClock: document.getElementById('mob-clock'),
+      mobBlackTemp: document.getElementById('mob-black-temp'),
+      mobWhiteTemp: document.getElementById('mob-white-temp'),
+      graphRangeBadge: document.getElementById('graph-range-badge'),
+      blackVal: document.getElementById('black-temp-val'),
+      whiteVal: document.getElementById('white-temp-val'),
+      resultBox: document.getElementById('result-box'),
+      conclusion: document.getElementById('conclusion-content'),
+      conclusionBadge: document.getElementById('conclusion-badge'),
+      summaryBlack: document.getElementById('summary-black'),
+      summaryWhite: document.getElementById('summary-white'),
+      infoCard: document.getElementById('info-card'),
+      infoTitle: document.getElementById('info-title'),
+      infoBody: document.getElementById('info-body'),
+      infoClose: document.getElementById('info-close'),
+      thermoInspector: document.getElementById('thermo-inspector'),
+      inspectorClose: document.getElementById('inspector-close'),
+      inspectorCanLabel: document.getElementById('inspector-can-label'),
+      inspectorTempReadout: document.getElementById('inspector-temp-readout'),
+      inspectorRateText: document.getElementById('inspector-rate-text'),
+      inspectorSwitch: document.getElementById('inspector-switch'),
+      thermoZoomCanvas: document.getElementById('thermo-zoom-canvas'),
+      hoverTooltip: document.getElementById('hover-tooltip'),
+      btnLayoutMode: document.getElementById('btn-layout-mode'),
+      layoutModeIcon: document.getElementById('layout-mode-icon'),
+      layoutModeLabel: document.getElementById('layout-mode-label'),
+      btnHideUI: document.getElementById('btn-hide-ui'),
+      btnShowUI: document.getElementById('btn-show-ui'),
+      btnActPrev: document.getElementById('btn-act-prev'),
+      btnActNext: document.getElementById('btn-act-next'),
+      btnActExit: document.getElementById('btn-act-exit'),
+      actStepMain: document.getElementById('act-step-main'),
+      actStepSub: document.getElementById('act-step-sub')
+    };
+
+    /* Mobile / Desktop Mode Toggle */
+    let isMobileMode = window.innerWidth <= 900;
+    function applyLayoutMode(mobile) {
+      isMobileMode = mobile;
+      document.body.classList.toggle('mode-mobile', mobile);
+      document.body.classList.toggle('mode-desktop', !mobile);
+      ui.layoutModeIcon.textContent = mobile ? '📱' : '🖥️';
+      ui.layoutModeLabel.textContent = mobile ? 'Mobile' : 'Desktop';
+      if (mobile) {
+        camera.position.set(0.0, 5.2, 9.8);
+        controls.target.set(-0.5, 0.9, 0);
+      } else {
+        camera.position.set(0.2, 4.5, 7.6);
+        controls.target.set(-0.2, 1.0, 0);
+      }
+      controls.update();
+    }
+    applyLayoutMode(isMobileMode);
+
+    ui.btnLayoutMode.addEventListener('click', () => applyLayoutMode(!isMobileMode));
+
+    /* Mobile Tab Bar */
+    const mobTabBtns = Array.from(document.querySelectorAll('.mob-tab-btn'));
+    mobTabBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-mob-tab');
+        document.body.setAttribute('data-mobile-tab', tab);
+        mobTabBtns.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    /* Hide All Text / UI Toggle */
+    function setUiHidden(hidden) {
+      document.body.classList.toggle('ui-hidden', hidden);
+    }
+    ui.btnHideUI.addEventListener('click', () => setUiHidden(true));
+    ui.btnShowUI.addEventListener('click', () => setUiHidden(false));
+
+    function updateClockDisplay() {
+      const cur = Math.min(state.simMinutes, state.targetMinutes).toFixed(1).padStart(4, '0');
+      const tgt = state.targetMinutes.toFixed(1);
+      ui.clock.textContent = `${cur} / ${tgt} min`;
+      ui.mobClock.textContent = `${Math.min(state.simMinutes, state.targetMinutes).toFixed(1)}m`;
+      ui.graphRangeBadge.textContent = `0–${state.targetMinutes} min`;
+    }
+
+    function updateAdd10Buttons() {
+      const canExtend = state.step === 6 && state.simMinutes >= 20;
+      [ui.btnAdd10Left, ui.btnAdd10Result].forEach((btn) => {
+        if (canExtend) {
+          btn.classList.add('visible');
+          if (state.targetMinutes >= MAX_SIM_MINUTES) {
+            btn.disabled = true;
+            btn.innerHTML =
+              `<span>🏁 Max 100 Min Reached</span>` +
+              `<span style="font-size:0.72rem;font-family:'Noto Sans Kannada',sans-serif;">ಗರಿಷ್ಠ 100 ನಿಮಿಷ ಪೂರ್ಣಗೊಂಡಿದೆ</span>`;
+          } else {
+            btn.disabled = false;
+            const nextTarget = Math.min(state.targetMinutes + 10, MAX_SIM_MINUTES);
+            btn.innerHTML =
+              `<span>➕ Add +10 Min (Run to ${nextTarget} min)</span>` +
+              `<span style="font-size:0.72rem;font-family:'Noto Sans Kannada',sans-serif;">ಇನ್ನೂ +10 ನಿಮಿಷ ಸೇರಿಸಿ (${nextTarget} ನಿಮಿಷದವರೆಗೆ)</span>`;
+          }
+        } else {
+          btn.classList.remove('visible');
+        }
+      });
+    }
+
+    function syncActivityBar() {
+      ui.btnActPrev.disabled = state.step === 1 && state.cansPlaced === 0;
+      ui.btnActNext.disabled = state.isPouring || (state.step === 6 && state.targetMinutes >= MAX_SIM_MINUTES);
+
+      if (state.step === 1) {
+        ui.actStepMain.textContent = 'STEP 1 / 5';
+        ui.actStepSub.textContent = `Place Cans (${state.cansPlaced}/2)`;
+      } else if (state.step === 2) {
+        ui.actStepMain.textContent = 'STEP 2 / 5';
+        ui.actStepSub.textContent = state.isPouring ? 'Pouring Water...' : 'Pour 50ml Water';
+      } else if (state.step === 3) {
+        ui.actStepMain.textContent = 'STEP 3 / 5';
+        ui.actStepSub.textContent = `Thermometers (${state.thermosPlaced}/2)`;
+      } else if (state.step === 4) {
+        ui.actStepMain.textContent = 'STEP 4 / 5';
+        ui.actStepSub.textContent = 'Ready • Start Sun';
+      } else if (state.step === 5) {
+        ui.actStepMain.textContent = 'STEP 5 / 5';
+        ui.actStepSub.textContent = state.isPausedByUser
+          ? `Paused (${state.simMinutes.toFixed(1)}m)`
+          : `Heating (${state.simMinutes.toFixed(1)}m)`;
+      } else {
+        ui.actStepMain.textContent = 'COMPLETE';
+        ui.actStepSub.textContent = `${state.blackTemp.toFixed(1)}°C vs ${state.whiteTemp.toFixed(1)}°C`;
+      }
+    }
+
+    function updateStepUI() {
+      ui.step1Sub.textContent = `Placed: ${state.cansPlaced} / 2`;
+      if (state.cansPlaced >= 2) {
+        ui.step1.classList.remove('active');
+        ui.step1.classList.add('completed');
+        ui.step1Icon.textContent = '✅';
+      } else {
+        ui.step1.classList.add('active');
+        ui.step1.classList.remove('completed');
+        ui.step1Icon.textContent = '⏳';
+      }
+
+      if (state.step === 2) {
+        ui.step2.classList.add('active');
+        ui.step2.classList.remove('completed');
+        ui.step2Icon.textContent = '⏳';
+        ui.step2Sub.textContent = state.isPouring ? 'Pouring 50ml + 50ml...' : 'Drag or Tap Beaker';
+        ui.hint.innerHTML =
+          `👉 Drag or tap the <strong>Water Beaker</strong> onto the cans to pour 50ml water into both.<br/>` +
+          `<span style="font-family:'Noto Sans Kannada',sans-serif;">ಎರಡೂ ಡಬ್ಬಿಗಳಿಗೆ 50ml ನೀರು ಸುರಿಯಲು ಬೀಕರ್ ಅನ್ನು ಎಳೆಯಿರಿ ಅಥವಾ ಟ್ಯಾಪ್ ಮಾಡಿ.</span>`;
+      } else if (state.step > 2) {
+        ui.step2.classList.remove('active');
+        ui.step2.classList.add('completed');
+        ui.step2Icon.textContent = '✅';
+        ui.step2Sub.textContent = '50ml poured in each can';
+      } else {
+        ui.step2.classList.remove('active', 'completed');
+        ui.step2Icon.textContent = '🔒';
+        ui.step2Sub.textContent = 'Pending Step 1';
+      }
+
+      if (state.step === 3) {
+        ui.step3.classList.add('active');
+        ui.step3.classList.remove('completed');
+        ui.step3Icon.textContent = '⏳';
+        ui.step3Sub.textContent = `Inserted: ${state.thermosPlaced} / 2`;
+        ui.hint.innerHTML =
+          `👉 Drag or tap both <strong>Thermometers</strong> from the Toolbox into the Black &amp; White cans.<br/>` +
+          `<span style="font-family:'Noto Sans Kannada',sans-serif;">ಎರಡು ಥರ್ಮಾಮೀಟರ್‌ಗಳನ್ನು ಡಬ್ಬಿಗಳ ಒಳಗೆ ಎಳೆಯಿರಿ ಅಥವಾ ಟ್ಯಾಪ್ ಮಾಡಿ.</span>`;
+      } else if (state.step > 3) {
+        ui.step3.classList.remove('active');
+        ui.step3.classList.add('completed');
+        ui.step3Icon.textContent = '✅';
+        ui.step3Sub.textContent = 'Inserted: 2 / 2';
+      } else {
+        ui.step3.classList.remove('active', 'completed');
+        ui.step3Icon.textContent = '🔒';
+        ui.step3Sub.textContent = 'Pending Step 2';
+      }
+
+      if (state.step === 4) {
+        ui.btnStart.disabled = false;
+        ui.btnPause.classList.remove('visible');
+        ui.hint.innerHTML =
+          `✅ Assembly Complete! Click <strong>Start Experiment</strong> or click a thermometer to check 28.0°C.<br/>` +
+          `<span style="font-family:'Noto Sans Kannada',sans-serif;">ಜೋಡಣೆ ಪೂರ್ಣಗೊಂಡಿದೆ! ಪ್ರಯೋಗ ಪ್ರಾರಂಭಿಸಿ ಅಥವಾ ಥರ್ಮಾಮೀಟರ್ ಪರಿಶೀಲಿಸಿ.</span>`;
+      } else if (state.step === 5) {
+        ui.btnStart.disabled = true;
+        ui.btnPause.classList.add('visible');
+        ui.pauseIcon.textContent = state.isPausedByUser ? '▶️ Resume' : '⏸️ Pause';
+        ui.hint.innerHTML =
+          `☀️ Simulation running (${state.speedMultiplier}x). Click any <strong>Thermometer</strong> to zoom-check its scale!<br/>` +
+          `<span style="font-family:'Noto Sans Kannada',sans-serif;">ಪ್ರಯೋಗ ನಡೆಯುತ್ತಿದೆ. ಥರ್ಮಾಮೀಟರ್ ತಾಪಮಾನವನ್ನು ಹತ್ತಿರದಿಂದ ನೋಡಲು ಅದರ ಮೇಲೆ ಕ್ಲಿಕ್ ಮಾಡಿ.</span>`;
+      } else if (state.step === 6) {
+        ui.btnStart.disabled = true;
+        ui.btnPause.classList.remove('visible');
+        ui.hint.innerHTML =
+          `🏁 Reached ${state.targetMinutes} min! Check either thermometer or click <strong>+10 Min</strong> (up to 100 min).<br/>` +
+          `<span style="font-family:'Noto Sans Kannada',sans-serif;">${state.targetMinutes} ನಿಮಿಷ ಪೂರ್ಣ! ಥರ್ಮಾಮೀಟರ್ ಪರಿಶೀಲಿಸಿ ಅಥವಾ +10 ನಿಮಿಷ ಸೇರಿಸಿ (100 ನಿಮಿಷದವರೆಗೆ).</span>`;
+      }
+
+      updateAdd10Buttons();
+      updateClockDisplay();
+      syncActivityBar();
+    }
+
+    // =========================================================================
+    // 9. ZOOMED THERMOMETER INSPECTOR
+    // =========================================================================
+    const tzCanvas = ui.thermoZoomCanvas;
+    const tzCtx = tzCanvas.getContext('2d');
+
+    function drawZoomedThermometer(tempC, isBlack) {
+      const w = tzCanvas.width;
+      const h = tzCanvas.height;
+      tzCtx.clearRect(0, 0, w, h);
+
+      const yBot = 155;
+      const yTop = 20;
+      const span = yBot - yTop;
+
+      tzCtx.fillStyle = '#1e293b';
+      tzCtx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+      tzCtx.lineWidth = 2;
+      tzCtx.beginPath();
+      tzCtx.roundRect(36, 12, 24, 152, 12);
+      tzCtx.fill();
+      tzCtx.stroke();
+
+      tzCtx.font = 'bold 10px Inter, sans-serif';
+      for (let t = 20; t <= 100; t += 10) {
+        const y = yBot - ((t - 20) / 80) * span;
+        tzCtx.strokeStyle = t >= 60 ? '#f87171' : '#94a3b8';
+        tzCtx.lineWidth = 1.5;
+        tzCtx.beginPath();
+        tzCtx.moveTo(26, y);
+        tzCtx.lineTo(36, y);
+        tzCtx.moveTo(60, y);
+        tzCtx.lineTo(70, y);
+        tzCtx.stroke();
+
+        tzCtx.fillStyle = t >= 60 ? '#fca5a5' : '#cbd5e1';
+        tzCtx.textAlign = 'right';
+        tzCtx.fillText(`${t}°`, 24, y + 3);
+      }
+
+      const frac = THREE.MathUtils.clamp((tempC - 20) / 80, 0.02, 1.0);
+      const colTop = yBot - frac * span;
+      const grad = tzCtx.createLinearGradient(0, yBot, 0, colTop);
+      grad.addColorStop(0, '#dc2626');
+      grad.addColorStop(1, isBlack ? '#fb923c' : '#f87171');
+      tzCtx.fillStyle = grad;
+      tzCtx.fillRect(42, colTop, 12, yBot - colTop + 8);
+
+      tzCtx.beginPath();
+      tzCtx.arc(48, 169, 14, 0, Math.PI * 2);
+      tzCtx.fillStyle = '#ef4444';
+      tzCtx.fill();
+      tzCtx.strokeStyle = '#fca5a5';
+      tzCtx.lineWidth = 1.5;
+      tzCtx.stroke();
+
+      tzCtx.strokeStyle = '#fde047';
+      tzCtx.lineWidth = 1.5;
+      tzCtx.beginPath();
+      tzCtx.moveTo(60, colTop);
+      tzCtx.lineTo(88, colTop);
+      tzCtx.stroke();
+      tzCtx.fillStyle = '#fde047';
+      tzCtx.font = 'bold 10px Orbitron, sans-serif';
+      tzCtx.textAlign = 'left';
+      tzCtx.fillText(`${tempC.toFixed(1)}`, 63, colTop - 4);
+    }
+
+    function openThermometerInspector(canType) {
+      state.inspectedCanType = canType;
+      ui.infoCard.classList.remove('visible');
+      ui.thermoInspector.classList.add('visible');
+
+      thermometers.forEach((t) => {
+        const matches =
+          (canType === 'black' && t.userData.placedInCan === blackCan) ||
+          (canType === 'white' && t.userData.placedInCan === whiteCan) ||
+          (!t.userData.placedInCan && ((canType === 'black' && t.userData.index === 0) || (canType === 'white' && t.userData.index === 1)));
+        t.userData.highlightRing.visible = matches;
+      });
+
+      playTone(660, 0.08, 'sine', 0.06);
+      updateThermometerInspector();
+    }
+
+    function updateThermometerInspector() {
+      if (!state.inspectedCanType) return;
+      const isBlack = state.inspectedCanType === 'black';
+      const tempC = isBlack ? state.blackTemp : state.whiteTemp;
+
+      ui.inspectorCanLabel.textContent = isBlack
+        ? '⬛ Black Can Thermometer (ಕಪ್ಪು ಡಬ್ಬಿ ಥರ್ಮಾಮೀಟರ್)'
+        : '⬜ White Can Thermometer (ಬಿಳಿ ಡಬ್ಬಿ ಥರ್ಮಾಮೀಟರ್)';
+      ui.inspectorTempReadout.textContent = `${tempC.toFixed(1)}°C`;
+      ui.inspectorTempReadout.style.color = isBlack ? '#fb923c' : '#38bdf8';
+
+      const rate = isBlack
+        ? Math.max(0, (1.5 - 0.0325 * (tempC - 28.0)) * state.sunPower)
+        : Math.max(0, (0.4 - 0.022 * (tempC - 28.0)) * state.sunPower);
+      ui.inspectorRateText.textContent =
+        state.step === 5 && !state.isPausedByUser
+          ? `Heating Rate: +${rate.toFixed(2)}°C/min • Time: ${state.simMinutes.toFixed(1)}m`
+          : `Scale Range: 20°C – 100°C • Elapsed: ${state.simMinutes.toFixed(1)} min`;
+
+      drawZoomedThermometer(tempC, isBlack);
+    }
+
+    ui.inspectorClose.addEventListener('click', () => {
+      state.inspectedCanType = null;
+      ui.thermoInspector.classList.remove('visible');
+      thermometers.forEach((t) => (t.userData.highlightRing.visible = false));
+    });
+
+    ui.inspectorSwitch.addEventListener('click', () => {
+      openThermometerInspector(state.inspectedCanType === 'black' ? 'white' : 'black');
+    });
+
+    document.getElementById('card-check-black').addEventListener('click', () => openThermometerInspector('black'));
+    document.getElementById('card-check-white').addEventListener('click', () => openThermometerInspector('white'));
+
+    // =========================================================================
+    // 10. EASY PLACEMENT HELPERS (WORK FOR BOTH DRAG-AND-DROP & ONE-TAP / NEXT)
+    // =========================================================================
+    function placeCanOnTable(canObj) {
+      if (canObj.userData.placed) return;
+      canObj.position.copy(canObj.userData.targetPos);
+      canObj.userData.placed = true;
+      state.cansPlaced++;
+      playTone(480, 0.1, 'triangle', 0.08);
+      if (canObj.userData.canType === 'black') blackZoneRing.material.color.setHex(0x22c55e);
+      if (canObj.userData.canType === 'white') whiteZoneRing.material.color.setHex(0x22c55e);
+      if (state.cansPlaced === 2) {
+        state.step = 2;
+        playSuccessChime();
+      }
+      updateStepUI();
+    }
+
+    function triggerBeakerPour() {
+      if (state.step !== 2 || state.isPouring || waterBeaker.userData.used) return;
+      state.isPouring = true;
+      state.pourProgress = 0;
+      playTone(300, 0.35, 'sine', 0.06);
+      updateStepUI();
+    }
+
+    function insertThermometerIntoCan(thermoObj, preferredCan) {
+      if (thermoObj.userData.placedInCan) return;
+      let chosenCan = preferredCan;
+      if (!chosenCan) {
+        if (!blackCan.userData.hasThermometer) chosenCan = blackCan;
+        else if (!whiteCan.userData.hasThermometer) chosenCan = whiteCan;
+      }
+      if (!chosenCan || chosenCan.userData.hasThermometer) return;
+
+      chosenCan.userData.hasThermometer = true;
+      thermoObj.userData.placedInCan = chosenCan;
+      thermoObj.position.set(chosenCan.position.x + 0.14, 0.56, chosenCan.position.z - 0.05);
+      thermoObj.rotation.z = -0.09;
+      thermoObj.userData.badge.visible = true;
+      setThermometerTemp(thermoObj, 28.0);
+      state.thermosPlaced++;
+      playTone(580, 0.1, 'triangle', 0.08);
+      if (state.thermosPlaced === 2) {
+        state.step = 4;
+        playSuccessChime();
+      }
+      updateStepUI();
+    }
+
+    // =========================================================================
+    // 11. RAYCASTER DRAG-AND-DROP + TAP-TO-PLACE + CLICK INSPECTION
+    // =========================================================================
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.95);
+    const intersectPoint = new THREE.Vector3();
+
+    let draggedObject = null;
+    let pointerDownPos = new THREE.Vector2();
+
+    function updatePointer(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    }
+
+    function getActiveDraggables() {
+      const list = [];
+      if (state.step === 1) {
+        if (!blackCan.userData.placed) list.push(blackCan);
+        if (!whiteCan.userData.placed) list.push(whiteCan);
+      } else if (state.step === 2 && !state.isPouring) {
+        if (!waterBeaker.userData.used) list.push(waterBeaker);
+      } else if (state.step === 3) {
+        thermometers.forEach((t) => {
+          if (!t.userData.placedInCan) list.push(t);
+        });
+      }
+      return list;
+    }
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      pointerDownPos.set(e.clientX, e.clientY);
+      updatePointer(e);
+      raycaster.setFromCamera(pointer, camera);
+
+      const candidates = getActiveDraggables();
+      const hits = raycaster.intersectObjects(candidates, true);
+      if (hits.length > 0) {
+        let obj = hits[0].object;
+        while (obj.parent && !candidates.includes(obj)) {
+          obj = obj.parent;
+        }
+        if (candidates.includes(obj)) {
+          draggedObject = obj;
+          controls.enabled = false;
+          renderer.domElement.style.cursor = 'grabbing';
+          ui.hoverTooltip.style.display = 'none';
+          playTone(340, 0.06, 'sine', 0.05);
+        }
+      }
+    });
+
+    renderer.domElement.addEventListener('pointermove', (e) => {
+      updatePointer(e);
+      raycaster.setFromCamera(pointer, camera);
+
+      if (draggedObject) {
+        if (raycaster.ray.intersectPlane(dragPlane, intersectPoint)) {
+          draggedObject.position.x = THREE.MathUtils.clamp(intersectPoint.x, -4.1, 3.8);
+          draggedObject.position.z = THREE.MathUtils.clamp(intersectPoint.z, -1.8, 1.8);
+          draggedObject.position.y = 1.05;
+        }
+        return;
+      }
+
+      const candidates = getActiveDraggables();
+      const dragHits = raycaster.intersectObjects(candidates, true);
+      const thermoHits = raycaster.intersectObjects(clickableThermometers, false);
+      const canHits = raycaster.intersectObjects(clickableCans, false);
+
+      let tipText = '';
+      if (dragHits.length > 0) {
+        renderer.domElement.style.cursor = 'grab';
+        tipText = dragHits[0].object.userData.hoverLabel || 'Drag or Tap to Place';
+      } else if (thermoHits.length > 0) {
+        renderer.domElement.style.cursor = 'pointer';
+        tipText = 'Click to Check Thermometer °C (ತಾಪಮಾನ ಪರಿಶೀಲಿಸಿ)';
+      } else if (canHits.length > 0) {
+        renderer.domElement.style.cursor = 'pointer';
+        tipText = canHits[0].object.userData.hoverLabel;
+      } else {
+        renderer.domElement.style.cursor = 'default';
+      }
+
+      if (tipText && !isMobileMode) {
+        ui.hoverTooltip.textContent = tipText;
+        ui.hoverTooltip.style.left = `${e.clientX + 14}px`;
+        ui.hoverTooltip.style.top = `${e.clientY - 14}px`;
+        ui.hoverTooltip.style.display = 'block';
+      } else {
+        ui.hoverTooltip.style.display = 'none';
+      }
+    });
+
+    renderer.domElement.addEventListener('pointerup', (e) => {
+      const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+
+      if (draggedObject) {
+        const obj = draggedObject;
+        draggedObject = null;
+        controls.enabled = true;
+        renderer.domElement.style.cursor = 'default';
+
+        // Quick tap (< 10px movement) auto-places the active toolbox item!
+        if (moveDist < 10) {
+          if (obj.userData.itemType === 'can') placeCanOnTable(obj);
+          else if (obj.userData.itemType === 'beaker') triggerBeakerPour();
+          else if (obj.userData.itemType === 'thermometer') insertThermometerIntoCan(obj, null);
+          return;
+        }
+
+        if (obj.userData.itemType === 'can') {
+          const dist = Math.hypot(
+            obj.position.x - obj.userData.targetPos.x,
+            obj.position.z - obj.userData.targetPos.z
+          );
+          if (dist < 1.55) {
+            placeCanOnTable(obj);
+          } else {
+            obj.position.copy(obj.userData.homePos);
+          }
+        } else if (obj.userData.itemType === 'beaker') {
+          const nearBlack = Math.hypot(obj.position.x - BLACK_TARGET.x, obj.position.z - BLACK_TARGET.z) < 2.0;
+          const nearWhite = Math.hypot(obj.position.x - WHITE_TARGET.x, obj.position.z - WHITE_TARGET.z) < 2.0;
+          const nearTable = obj.position.x > -1.7;
+          if (nearBlack || nearWhite || nearTable) {
+            triggerBeakerPour();
+          } else {
+            obj.position.copy(obj.userData.homePos);
+          }
+        } else if (obj.userData.itemType === 'thermometer') {
+          const distBlack = Math.hypot(obj.position.x - BLACK_TARGET.x, obj.position.z - BLACK_TARGET.z);
+          const distWhite = Math.hypot(obj.position.x - WHITE_TARGET.x, obj.position.z - WHITE_TARGET.z);
+
+          let chosenCan = null;
+          if (distBlack < 1.45 && !blackCan.userData.hasThermometer) {
+            chosenCan = blackCan;
+          } else if (distWhite < 1.45 && !whiteCan.userData.hasThermometer) {
+            chosenCan = whiteCan;
+          }
+
+          if (chosenCan) {
+            insertThermometerIntoCan(obj, chosenCan);
+          } else {
+            obj.position.copy(obj.userData.homePos);
+          }
+        }
+        return;
+      }
+
+      // Click detection when not dragging
+      if (moveDist < 8) {
+        updatePointer(e);
+        raycaster.setFromCamera(pointer, camera);
+
+        const thermoHits = raycaster.intersectObjects(clickableThermometers, false);
+        if (thermoHits.length > 0) {
+          const tGroup = thermoHits[0].object.userData.thermoRef;
+          if (tGroup && tGroup.userData.placedInCan) {
+            openThermometerInspector(tGroup.userData.placedInCan.userData.canType);
+          } else {
+            openThermometerInspector(tGroup && tGroup.userData.index === 1 ? 'white' : 'black');
+          }
+          return;
+        }
+
+        const canHits = raycaster.intersectObjects(clickableCans, false);
+        if (canHits.length > 0) {
+          showCanInfo(canHits[0].object.userData.canType);
+        }
+      }
+    });
+
+    function showCanInfo(canType) {
+      ui.thermoInspector.classList.remove('visible');
+      state.inspectedCanType = null;
+      thermometers.forEach((t) => (t.userData.highlightRing.visible = false));
+
+      ui.infoCard.classList.add('visible');
+      playTone(440, 0.08, 'sine', 0.05);
+      if (canType === 'black') {
+        ui.infoTitle.textContent = '⬛ Black Can: Absorption (ಹೀರಿಕೊಳ್ಳುವಿಕೆ) vs Reflection (ಪ್ರತಿಫಲನ)';
+        ui.infoBody.innerHTML =
+          `<strong>Matte Black Surface (roughness: 0.9):</strong> Absorbs almost all incoming thermal radiation from the Sun and converts it rapidly into heat.<br/>` +
+          `<span style="font-family:'Noto Sans Kannada',sans-serif; color:#bae6fd;">` +
+          `<strong>ಹೀರಿಕೊಳ್ಳುವಿಕೆ:</strong> ಕಪ್ಪು ಮತ್ತು ಒರಟಾದ ಮೇಲ್ಮೈ ಸೂರ್ಯನ ವಿಕಿರಣವನ್ನು ಹೆಚ್ಚು ಹೀರಿಕೊಳ್ಳುತ್ತದೆ, ಆದ್ದರಿಂದ ನೀರು ಬೇಗನೆ ಬಿಸಿಯಾಗುತ್ತದೆ.</span>`;
+      } else {
+        ui.infoTitle.textContent = '⬜ White Can: Reflection (ಪ್ರತಿಫಲನ) vs Absorption (ಹೀರಿಕೊಳ್ಳುವಿಕೆ)';
+        ui.infoBody.innerHTML =
+          `<strong>Glossy White Surface (roughness: 0.1):</strong> Reflects most incoming thermal radiation away, so very little heat enters the water.<br/>` +
+          `<span style="font-family:'Noto Sans Kannada',sans-serif; color:#bae6fd;">` +
+          `<strong>ಪ್ರತಿಫಲನ:</strong> ಬಿಳಿ ಮತ್ತು ನಯವಾದ ಮೇಲ್ಮೈ ಸೂರ್ಯನ ವಿಕಿರಣವನ್ನು ಪ್ರತಿಫಲಿಸುತ್ತದೆ, ಆದ್ದರಿಂದ ನೀರು ನಿಧಾನವಾಗಿ ಬಿಸಿಯಾಗುತ್ತದೆ.</span>`;
+      }
+    }
+
+    ui.infoClose.addEventListener('click', () => ui.infoCard.classList.remove('visible'));
+
+    // =========================================================================
+    // 12. DYNAMIC LIVE LINE GRAPH
+    // =========================================================================
+    const graphCanvas = document.getElementById('temp-graph');
+    const gCtx = graphCanvas.getContext('2d');
+
+    function drawGraph() {
+      const w = graphCanvas.width;
+      const h = graphCanvas.height;
+      const padL = 36, padR = 14, padT = 14, padB = 26;
+      const plotW = w - padL - padR;
+      const plotH = h - padT - padB;
+
+      const maxTime = state.targetMinutes;
+      const minTemp = 20;
+      const maxTemp = maxTime > 20 ? 90 : 60;
+      const tempSpan = maxTemp - minTemp;
+
+      gCtx.clearRect(0, 0, w, h);
+
+      gCtx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+      gCtx.lineWidth = 1;
+      gCtx.font = '10px Inter, sans-serif';
+      gCtx.fillStyle = '#94a3b8';
+
+      const tempStep = maxTemp > 60 ? 20 : 10;
+      for (let temp = minTemp; temp <= maxTemp; temp += tempStep) {
+        const y = padT + plotH - ((temp - minTemp) / tempSpan) * plotH;
+        gCtx.beginPath();
+        gCtx.moveTo(padL, y);
+        gCtx.lineTo(w - padR, y);
+        gCtx.stroke();
+        gCtx.fillText(`${temp}°`, 4, y + 3);
+      }
+
+      const timeStep = maxTime <= 30 ? 5 : maxTime <= 60 ? 10 : 20;
+      for (let min = 0; min <= maxTime; min += timeStep) {
+        const x = padL + (min / maxTime) * plotW;
+        gCtx.beginPath();
+        gCtx.moveTo(x, padT);
+        gCtx.lineTo(x, h - padB);
+        gCtx.stroke();
+        gCtx.fillText(`${min}m`, x - 8, h - 8);
+      }
+
+      function plotLine(key, strokeColor, glowColor) {
+        if (state.history.length < 1) return;
+        gCtx.save();
+        gCtx.strokeStyle = strokeColor;
+        gCtx.lineWidth = 2.6;
+        gCtx.shadowColor = glowColor;
+        gCtx.shadowBlur = 8;
+        gCtx.beginPath();
+        state.history.forEach((pt, idx) => {
+          const x = padL + (Math.min(pt.t, maxTime) / maxTime) * plotW;
+          const y = padT + plotH - THREE.MathUtils.clamp((pt[key] - minTemp) / tempSpan, 0, 1) * plotH;
+          if (idx === 0) gCtx.moveTo(x, y);
+          else gCtx.lineTo(x, y);
+        });
+        gCtx.stroke();
+
+        const last = state.history[state.history.length - 1];
+        const lx = padL + (Math.min(last.t, maxTime) / maxTime) * plotW;
+        const ly = padT + plotH - THREE.MathUtils.clamp((last[key] - minTemp) / tempSpan, 0, 1) * plotH;
+        gCtx.fillStyle = strokeColor;
+        gCtx.beginPath();
+        gCtx.arc(lx, ly, 4, 0, Math.PI * 2);
+        gCtx.fill();
+        gCtx.restore();
+      }
+
+      plotLine('white', '#38bdf8', '#38bdf8');
+      plotLine('black', '#f97316', '#f97316');
+    }
+
+    // =========================================================================
+    // 13. INTERACTIVE CONTROLS & ACTIVITY BAR (PREV / NEXT / EXIT)
+    // =========================================================================
+    function activateSunVisuals(active) {
+      if (active) {
+        sunCoreMat.color.setHex(0xfef08a);
+        sunHaloMat.opacity = 0.25 + 0.15 * state.sunPower;
+        rayMat.opacity = 0.12 * state.sunPower;
+        sunLight.intensity = 2.6 * state.sunPower;
+      } else {
+        sunCoreMat.color.setHex(0x475569);
+        sunHaloMat.opacity = 0;
+        rayMat.opacity = 0;
+        sunLight.intensity = 0.2;
+      }
+    }
+
+    function startExperiment() {
+      if (state.step !== 4) return;
+      state.step = 5;
+      state.isPausedByUser = false;
+      activateSunVisuals(true);
+      playSuccessChime();
+      updateStepUI();
+    }
+
+    ui.btnStart.addEventListener('click', startExperiment);
+
+    ui.btnPause.addEventListener('click', () => {
+      if (state.step !== 5) return;
+      state.isPausedByUser = !state.isPausedByUser;
+      playTone(state.isPausedByUser ? 320 : 520, 0.08, 'sine', 0.06);
+      updateStepUI();
+    });
+
+    function handleAdd10Minutes() {
+      if (state.step !== 6 || state.targetMinutes >= MAX_SIM_MINUTES) return;
+      state.targetMinutes = Math.min(state.targetMinutes + 10, MAX_SIM_MINUTES);
+      state.step = 5;
+      state.isPausedByUser = false;
+      ui.resultBox.classList.remove('complete');
+      ui.conclusion.classList.remove('visible');
+      activateSunVisuals(true);
+      playSuccessChime();
+      drawGraph();
+      updateStepUI();
+    }
+
+    ui.btnAdd10Left.addEventListener('click', handleAdd10Minutes);
+    ui.btnAdd10Result.addEventListener('click', handleAdd10Minutes);
+
+    document.querySelectorAll('.speed-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.speed-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.speedMultiplier = Number(btn.dataset.speed);
+        playTone(600, 0.05, 'sine', 0.04);
+      });
+    });
+
+    ui.sunSlider.addEventListener('input', (e) => {
+      const pct = Number(e.target.value);
+      state.sunPower = pct / 100;
+      ui.sunPowerLabel.textContent = `${pct}%`;
+      if (state.step >= 5) activateSunVisuals(true);
+    });
+
+    ui.btnSound.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      ui.btnSound.textContent = soundEnabled ? '🔊' : '🔇';
+    });
+
+    function resetLab() {
+      state.step = 1;
+      state.isPausedByUser = false;
+      state.cansPlaced = 0;
+      state.isPouring = false;
+      state.pourProgress = 0;
+      state.thermosPlaced = 0;
+      state.simMinutes = 0;
+      state.targetMinutes = 20;
+      state.blackTemp = 28.0;
+      state.whiteTemp = 28.0;
+      state.history = [{ t: 0, black: 28.0, white: 28.0 }];
+      state.lastGraphSample = 0;
+      state.inspectedCanType = null;
+
+      [blackCan, whiteCan].forEach((can) => {
+        can.position.copy(can.userData.homePos);
+        can.userData.placed = false;
+        can.userData.hasWater = false;
+        can.userData.hasThermometer = false;
+        can.userData.waterMesh.visible = false;
+        can.userData.waterMesh.scale.y = 0.001;
+        can.userData.waterMesh.position.y = 0.41;
+        can.userData.waterMat.color.setHex(0x1e90ff);
+      });
+
+      waterBeaker.position.copy(waterBeaker.userData.homePos);
+      waterBeaker.rotation.set(0, 0, 0);
+      waterBeaker.userData.used = false;
+      waterBeaker.userData.liquid.visible = true;
+      waterBeaker.userData.liquid.scale.y = 1;
+      waterBeaker.userData.liquid.position.y = 0.34;
+
+      thermometers.forEach((t) => {
+        t.position.copy(t.userData.homePos);
+        t.rotation.set(0, 0, 0);
+        t.userData.placedInCan = null;
+        t.userData.badge.visible = false;
+        t.userData.highlightRing.visible = false;
+        setThermometerTemp(t, 28.0);
+      });
+
+      activateSunVisuals(false);
+      steamMat.opacity = 0;
+
+      blackZoneRing.material.color.setHex(0xf97316);
+      whiteZoneRing.material.color.setHex(0x38bdf8);
+
+      ui.hint.innerHTML =
+        `👉 Drag or tap the <strong>Black Can</strong> &amp; <strong>White Can</strong> from the 3D Toolbox onto the glowing rings.<br/>` +
+        `<span style="font-family:'Noto Sans Kannada',sans-serif;">ಟೂಲ್‌ಬಾಕ್ಸ್‌ನಿಂದ ಕಪ್ಪು ಮತ್ತು ಬಿಳಿ ಡಬ್ಬಿಗಳನ್ನು ಎಳೆದು (ಅಥವಾ ಟ್ಯಾಪ್ ಮಾಡಿ) ಮೇಜಿನ ಮೇಲೆ ಇಡಿ.</span>`;
+      ui.btnStart.disabled = true;
+      ui.blackVal.textContent = '28.0°C';
+      ui.whiteVal.textContent = '28.0°C';
+      ui.mobBlackTemp.textContent = '28.0°C';
+      ui.mobWhiteTemp.textContent = '28.0°C';
+      ui.resultBox.classList.remove('complete');
+      ui.conclusion.classList.remove('visible');
+      ui.infoCard.classList.remove('visible');
+      ui.thermoInspector.classList.remove('visible');
+
+      updateStepUI();
+      drawGraph();
+    }
+
+    ui.btnReset.addEventListener('click', resetLab);
+
+    /* Activity Control Bar: Prev / Next / Exit */
+    ui.btnActNext.addEventListener('click', () => {
+      if (state.step === 1) {
+        if (!blackCan.userData.placed) placeCanOnTable(blackCan);
+        else if (!whiteCan.userData.placed) placeCanOnTable(whiteCan);
+      } else if (state.step === 2) {
+        triggerBeakerPour();
+      } else if (state.step === 3) {
+        const nextThermo = thermometers.find((t) => !t.userData.placedInCan);
+        if (nextThermo) insertThermometerIntoCan(nextThermo, null);
+      } else if (state.step === 4) {
+        startExperiment();
+      } else if (state.step === 5) {
+        state.isPausedByUser = !state.isPausedByUser;
+        updateStepUI();
+      } else if (state.step === 6) {
+        handleAdd10Minutes();
+      }
+    });
+
+    ui.btnActPrev.addEventListener('click', () => {
+      if (state.step === 6 || state.step === 5) {
+        // Rewind to Ready (Step 4)
+        state.step = 4;
+        state.isPausedByUser = false;
+        state.simMinutes = 0;
+        state.targetMinutes = 20;
+        state.blackTemp = 28.0;
+        state.whiteTemp = 28.0;
+        state.history = [{ t: 0, black: 28.0, white: 28.0 }];
+        state.lastGraphSample = 0;
+        activateSunVisuals(false);
+        steamMat.opacity = 0;
+        blackCan.userData.waterMat.color.setHex(0x1e90ff);
+        whiteCan.userData.waterMat.color.setHex(0x1e90ff);
+        thermometers.forEach((t) => setThermometerTemp(t, 28.0));
+        ui.blackVal.textContent = '28.0°C';
+        ui.whiteVal.textContent = '28.0°C';
+        ui.mobBlackTemp.textContent = '28.0°C';
+        ui.mobWhiteTemp.textContent = '28.0°C';
+        ui.resultBox.classList.remove('complete');
+        ui.conclusion.classList.remove('visible');
+        drawGraph();
+        updateStepUI();
+      } else if (state.step === 4 || (state.step === 3 && state.thermosPlaced > 0)) {
+        // Remove last placed thermometer
+        const placedThermo = [...thermometers].reverse().find((t) => t.userData.placedInCan);
+        if (placedThermo) {
+          placedThermo.userData.placedInCan.userData.hasThermometer = false;
+          placedThermo.userData.placedInCan = null;
+          placedThermo.position.copy(placedThermo.userData.homePos);
+          placedThermo.rotation.set(0, 0, 0);
+          placedThermo.userData.badge.visible = false;
+          state.thermosPlaced = Math.max(0, state.thermosPlaced - 1);
+          state.step = 3;
+          updateStepUI();
+        }
+      } else if (state.step === 3 && state.thermosPlaced === 0) {
+        // Undo poured water -> back to Step 2
+        state.isPouring = false;
+        waterBeaker.userData.used = false;
+        waterBeaker.userData.liquid.visible = true;
+        waterBeaker.userData.liquid.scale.y = 1;
+        waterBeaker.userData.liquid.position.y = 0.34;
+        [blackCan, whiteCan].forEach((can) => {
+          can.userData.hasWater = false;
+          can.userData.waterMesh.visible = false;
+          can.userData.waterMesh.scale.y = 0.001;
+        });
+        state.step = 2;
+        updateStepUI();
+      } else if (state.step === 2 || (state.step === 1 && state.cansPlaced > 0)) {
+        // Return last placed can to toolbox
+        const targetCan = whiteCan.userData.placed ? whiteCan : blackCan.userData.placed ? blackCan : null;
+        if (targetCan) {
+          targetCan.userData.placed = false;
+          targetCan.position.copy(targetCan.userData.homePos);
+          if (targetCan.userData.canType === 'black') blackZoneRing.material.color.setHex(0xf97316);
+          if (targetCan.userData.canType === 'white') whiteZoneRing.material.color.setHex(0x38bdf8);
+          state.cansPlaced = Math.max(0, state.cansPlaced - 1);
+          state.step = 1;
+          updateStepUI();
+        }
+      }
+    });
+
+    ui.btnActExit.addEventListener('click', () => {
+      setUiHidden(false);
+      resetLab();
+    });
+
+    // =========================================================================
+    // 14. MAIN ANIMATION & TIME-LAPSE PHYSICS LOOP
+    // =========================================================================
+    const clock = new THREE.Clock();
+    const blueColor = new THREE.Color(0x1e90ff);
+    const orangeColor = new THREE.Color(0xf97316);
+    const redColor = new THREE.Color(0xef4444);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.1);
+      const elapsed = clock.getElapsedTime();
+
+      if (state.step === 1) {
+        const pulse = 0.5 + 0.35 * Math.sin(elapsed * 4);
+        if (!blackCan.userData.placed) blackZoneRing.material.opacity = pulse;
+        if (!whiteCan.userData.placed) whiteZoneRing.material.opacity = pulse;
+      } else {
+        blackZoneRing.material.opacity = 0.35;
+        whiteZoneRing.material.opacity = 0.35;
+      }
+
+      if (state.isPouring) {
+        state.pourProgress += dt * 0.55;
+        const p = Math.min(state.pourProgress, 1);
+
+        if (p < 0.5) {
+          const sub = p / 0.5;
+          waterBeaker.position.set(BLACK_TARGET.x - 0.38, 1.95, 0);
+          waterBeaker.rotation.z = -0.85 * Math.sin(sub * Math.PI);
+          blackCan.userData.waterMesh.visible = true;
+          blackCan.userData.waterMesh.scale.y = Math.max(0.01, sub);
+          blackCan.userData.waterMesh.position.y = 0.02 + (0.78 * sub) / 2;
+          waterBeaker.userData.liquid.scale.y = 1 - 0.5 * sub;
+          waterBeaker.userData.liquid.position.y = 0.03 + (0.64 * (1 - 0.5 * sub)) / 2;
+        } else {
+          const sub = (p - 0.5) / 0.5;
+          waterBeaker.position.set(WHITE_TARGET.x - 0.38, 1.95, 0);
+          waterBeaker.rotation.z = -0.85 * Math.sin(sub * Math.PI);
+          whiteCan.userData.waterMesh.visible = true;
+          whiteCan.userData.waterMesh.scale.y = Math.max(0.01, sub);
+          whiteCan.userData.waterMesh.position.y = 0.02 + (0.78 * sub) / 2;
+          waterBeaker.userData.liquid.scale.y = Math.max(0.01, 0.5 - 0.5 * sub);
+          waterBeaker.userData.liquid.position.y = 0.03 + (0.64 * (0.5 - 0.5 * sub)) / 2;
+        }
+
+        if (p >= 1) {
+          state.isPouring = false;
+          waterBeaker.userData.used = true;
+          waterBeaker.userData.liquid.visible = false;
+          waterBeaker.rotation.z = 0;
+          waterBeaker.position.copy(waterBeaker.userData.homePos);
+          blackCan.userData.hasWater = true;
+          whiteCan.userData.hasWater = true;
+          state.step = 3;
+          playSuccessChime();
+          updateStepUI();
+        }
+      }
+
+      if (state.step === 5 && !state.isPausedByUser) {
+        const simDt = dt * state.speedMultiplier;
+        state.simMinutes += simDt;
+
+        const dBlack = Math.max(0, (1.5 * state.sunPower - 0.0325 * (state.blackTemp - 28.0)) * simDt);
+        const dWhite = Math.max(0, (0.4 * state.sunPower - 0.022 * (state.whiteTemp - 28.0)) * simDt);
+        state.blackTemp = Math.min(98.0, state.blackTemp + dBlack);
+        state.whiteTemp = Math.min(98.0, state.whiteTemp + dWhite);
+
+        thermometers.forEach((t) => {
+          if (t.userData.placedInCan === blackCan) setThermometerTemp(t, state.blackTemp);
+          if (t.userData.placedInCan === whiteCan) setThermometerTemp(t, state.whiteTemp);
+        });
+
+        const heatFactor = THREE.MathUtils.clamp((state.blackTemp - 28.0) / 30.0, 0, 1);
+        if (heatFactor < 0.5) {
+          blackCan.userData.waterMat.color.lerpColors(blueColor, orangeColor, heatFactor * 2);
+        } else {
+          blackCan.userData.waterMat.color.lerpColors(orangeColor, redColor, (heatFactor - 0.5) * 2);
+        }
+
+        const whiteHeat = THREE.MathUtils.clamp((state.whiteTemp - 28.0) / 30.0, 0, 1);
+        whiteCan.userData.waterMat.color.lerpColors(blueColor, new THREE.Color(0x38bdf8), whiteHeat);
+
+        steamMat.opacity = THREE.MathUtils.clamp((state.blackTemp - 31.0) / 22.0, 0, 0.85);
+        const posAttr = steamGeo.attributes.position;
+        for (let i = 0; i < STEAM_COUNT; i++) {
+          let y = posAttr.getY(i) + dt * steamSpeeds[i] * (0.7 + heatFactor * 1.4);
+          let x = BLACK_TARGET.x + Math.sin(elapsed * 2 + steamOffsets[i]) * 0.16;
+          if (y > 2.95) {
+            y = 1.32;
+            x = BLACK_TARGET.x + (Math.random() - 0.5) * 0.48;
+            posAttr.setZ(i, BLACK_TARGET.z + (Math.random() - 0.5) * 0.48);
+          }
+          posAttr.setX(i, x);
+          posAttr.setY(i, y);
+        }
+        posAttr.needsUpdate = true;
+
+        sunHalo.scale.setScalar(1 + 0.08 * Math.sin(elapsed * 5));
+
+        updateClockDisplay();
+        ui.blackVal.textContent = `${state.blackTemp.toFixed(1)}°C`;
+        ui.whiteVal.textContent = `${state.whiteTemp.toFixed(1)}°C`;
+        ui.mobBlackTemp.textContent = `${state.blackTemp.toFixed(1)}°C`;
+        ui.mobWhiteTemp.textContent = `${state.whiteTemp.toFixed(1)}°C`;
+        syncActivityBar();
+        if (state.inspectedCanType) updateThermometerInspector();
+
+        if (state.simMinutes - state.lastGraphSample >= 0.25) {
+          state.history.push({
+            t: state.simMinutes,
+            black: state.blackTemp,
+            white: state.whiteTemp
+          });
+          state.lastGraphSample = state.simMinutes;
+          drawGraph();
+        }
+
+        if (state.simMinutes >= state.targetMinutes) {
+          state.simMinutes = state.targetMinutes;
+          state.history.push({ t: state.targetMinutes, black: state.blackTemp, white: state.whiteTemp });
+          drawGraph();
+
+          state.step = 6;
+          ui.resultBox.classList.add('complete');
+          ui.conclusion.classList.add('visible');
+          ui.conclusionBadge.textContent =
+            state.targetMinutes >= MAX_SIM_MINUTES
+              ? `🏁 Full 100-Min Experiment Complete! (100 ನಿಮಿಷ ಪೂರ್ಣ)`
+              : `✅ ${state.targetMinutes}-Min Checkpoint Complete! (ಪ್ರಯೋಗ ಪೂರ್ಣಗೊಂಡಿದೆ)`;
+          ui.summaryBlack.textContent = `Black Can reached ${state.blackTemp.toFixed(1)}°C in ${state.targetMinutes} mins.`;
+          ui.summaryWhite.textContent = `White Can reached ${state.whiteTemp.toFixed(1)}°C in ${state.targetMinutes} mins.`;
+          if (state.inspectedCanType) updateThermometerInspector();
+          playSuccessChime();
+          updateStepUI();
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    updateStepUI();
+    drawGraph();
+    animate();
+  </script>
+</body>
+</html>
